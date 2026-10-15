@@ -31,15 +31,34 @@ CASES = [
 ]
 
 
+RAW_CASES = [
+    # (stdin bytes, expected exit code): input the guard must survive without a Traceback
+    (b"", 0),
+    (b"not json", 0),
+    (b"null", 0),
+    (b"[1, 2]", 0),
+    (b'{"agent_type": "readonly-agents:reader"}', 2),
+    (b'{"agent_type": "readonly-agents:reader", "tool_input": null}', 2),
+    (b'{"agent_type": null, "tool_input": {"command": 5}}', 0),
+    ('{"agent_type": "", "tool_input": {"command": "echo 你好 😀 ✔"}}'.encode("utf-8"), 0),
+    (b'{"agent_type": "", "tool_input": {"command": "echo ' + bytes([0xFF, 0xFE]) + b'"}}', 0),
+]
+
+
 def main() -> int:
     failed = 0
+    for data, want in RAW_CASES:
+        p = subprocess.run([sys.executable, str(GUARD)], input=data, capture_output=True)
+        ok = p.returncode == want and b"Traceback" not in p.stderr
+        failed += not ok
+        print(("pass" if ok else "FAIL"), f"raw {data[:40]!r} -> {p.returncode} (want {want})")
     for agent, cmd, want in CASES:
         payload = json.dumps({"agent_type": agent, "tool_input": {"command": cmd}})
         got = subprocess.run([sys.executable, str(GUARD)], input=payload, text=True, capture_output=True).returncode
         ok = got == want
         failed += not ok
         print(("pass" if ok else "FAIL"), f"agent={agent or '-'!r:26} {cmd!r} -> {got} (want {want})")
-    print(f"{len(CASES) - failed} pass, {failed} fail")
+    print(f"{len(CASES) + len(RAW_CASES) - failed} pass, {failed} fail")
     return 1 if failed else 0
 
 

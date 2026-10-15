@@ -22,6 +22,8 @@ Needs `uv` on `PATH` (the guard is a single-file Python script).
 
 `hooks/hooks.json` registers a `PreToolUse` hook on `Bash`. The hook reads `agent_type` from its input and does nothing unless it is `reader`. For `reader` the command must match `git <read-only subcommand> [args]` with no `; & | < > $ ( )`, backtick or newline, and without `--output`, `--ext-diff` or `--textconv`. A match is allowed without a prompt; anything else exits with code 2 and the model sees the reason.
 
+The hook is started for every Bash call of every agent, because a plugin hook cannot be limited to one agent by the engine; for any agent other than `reader` it exits at once without changing anything. The input is read as UTF-8 bytes and any unreadable input is let through, so the script never prints a Traceback.
+
 This is a plain-text allowlist, not a security boundary. A plugin subagent cannot carry its own `hooks` or `permissionMode`, which is why the guard is a plugin-level hook scoped by agent type.
 
 ## Limits
@@ -38,7 +40,7 @@ claude plugin validate .
 uv run --script tests/test_guard.py
 ```
 
-`tests/test_guard.py` runs 16 cases against the guard. It was also checked end to end with `claude -p --plugin-dir .`: `reader` ran `git diff`, and `git diff; echo x > t.txt` and `ls` were refused by the hook; `verifier` created a file only inside its worktree.
+`tests/test_guard.py` runs 25 cases against the guard. It was also checked end to end with `claude -p --plugin-dir .`: `reader` ran `git diff`, and `git diff; echo x > t.txt` and `ls` were refused by the hook; `verifier` created a file only inside its worktree.
 
 ## Layout
 
